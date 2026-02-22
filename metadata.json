@@ -1,0 +1,5 @@
+{
+  "name": "影视仓接口聚合平台",
+  "description": "一个聚合、管理及测试影视仓接口的专业平台。支持接口有效性检测、配置生成与分享。",
+  "requestFramePermissions": []
+}
