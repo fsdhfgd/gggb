@@ -115,16 +115,21 @@ export default function App() {
 
     setCheckingIds(prev => new Set(prev).add(id));
     try {
-      const res = await fetch(`/api/check-interface?url=${encodeURIComponent(source.url)}`);
-      const data = await res.json();
-      
+      const response = await fetch(source.url, { method: 'HEAD', mode: 'no-cors' });
       setSources(prev => prev.map(s => 
-        s.id === id ? { ...s, status: data.status, lastChecked: new Date().toLocaleString() } : s
+        s.id === id ? { ...s, status: 'online', lastChecked: new Date().toLocaleString() } : s
       ));
     } catch (error) {
-      setSources(prev => prev.map(s => 
-        s.id === id ? { ...s, status: 'offline', lastChecked: new Date().toLocaleString() } : s
-      ));
+      try {
+        const response = await fetch(source.url, { mode: 'cors' });
+        setSources(prev => prev.map(s => 
+          s.id === id ? { ...s, status: 'online', lastChecked: new Date().toLocaleString() } : s
+        ));
+      } catch (err) {
+        setSources(prev => prev.map(s => 
+          s.id === id ? { ...s, status: 'unknown', lastChecked: new Date().toLocaleString() } : s
+        ));
+      }
     } finally {
       setCheckingIds(prev => {
         const next = new Set(prev);
@@ -145,22 +150,23 @@ export default function App() {
     setSelectedIds(next);
   };
 
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-
   const handleAggregate = async () => {
     if (selectedIds.size === 0) return;
     setIsAggregating(true);
     setAggregatedResult(null);
-    setShareUrl(null);
 
     try {
       const results = await Promise.all(
         Array.from(selectedIds).map(async (id) => {
           const source = sources.find(s => s.id === id);
           if (!source) return null;
-          const res = await fetch(`/api/check-interface?url=${encodeURIComponent(source.url)}`);
-          const data = await res.json();
-          return data.content;
+          try {
+            const res = await fetch(source.url);
+            return await res.json();
+          } catch (err) {
+            console.error(`Failed to fetch ${source.url}`, err);
+            return null;
+          }
         })
       );
 
@@ -186,17 +192,6 @@ export default function App() {
 
       const jsonStr = JSON.stringify(finalConfig, null, 2);
       setAggregatedResult(jsonStr);
-
-      // Save to backend
-      const saveRes = await fetch('/api/aggregate/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: finalConfig })
-      });
-      const saveData = await saveRes.json();
-      if (saveData.id) {
-        setShareUrl(`${window.location.origin}/api/config/${saveData.id}`);
-      }
 
     } catch (error) {
       console.error("Aggregation failed", error);
@@ -427,31 +422,7 @@ export default function App() {
                 </button>
               </div>
 
-              {shareUrl && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 p-4 bg-emerald-50 border border-emerald-100 rounded-xl"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-                      <CheckCircle2 size={16} /> 聚合成功！分享链接：
-                    </h3>
-                    <button 
-                      onClick={() => copyToClipboard(shareUrl)}
-                      className="text-xs text-emerald-600 hover:underline flex items-center gap-1"
-                    >
-                      <Copy size={12} /> 复制链接
-                    </button>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-emerald-200 text-xs font-mono text-slate-600 break-all">
-                    {shareUrl}
-                  </div>
-                  <p className="mt-2 text-[10px] text-emerald-600">
-                    您可以直接在影视仓等应用中填入此链接。
-                  </p>
-                </motion.div>
-              )}
+
 
               {aggregatedResult && (
                 <motion.div 
