@@ -1,0 +1,5 @@
+{
+  "name": "云厂商 IP 范围探索器",
+  "description": "一个专业的工具，用于获取、查看和检查 60 多个云厂商、CDN 和 AI 服务的 IP 范围。",
+  "requestFramePermissions": []
+}
